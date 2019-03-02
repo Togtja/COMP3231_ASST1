@@ -83,9 +83,9 @@ static void ben(void * unusedpointer, unsigned long unusedint)
                 
                 lock_release(lockb);
 
-
-                lock_acquire(lockb);
+                //YO HO I Ordered the locks
                 lock_acquire(locka);
+                lock_acquire(lockb);
 
                 /* Ben now holds both locks and can do what ever bill
                    needs to do while holding the locks */

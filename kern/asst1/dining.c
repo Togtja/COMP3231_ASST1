@@ -11,9 +11,22 @@
  * Declare any data structures you might need to synchronise 
  * your forks here.
  */
+#define LEFT (phil_num + NUM_PHILOSOPHERS-1)%NUM_PHILOSOPHERS
+#define RIGHT (phil_num+1)%NUM_PHILOSOPHERS
+
+struct semaphore* mutex;
+struct semaphore* phils[NUM_PHILOSOPHERS];
+int state[NUM_PHILOSOPHERS];
 
 
-
+static void test_phil(unsigned long phil_num){
+    if(state[phil_num] == 1
+    && state[LEFT] != 2
+    && state[RIGHT] != 2){
+        state[phil_num] = 2;
+        V(phils[phil_num]);
+    }
+}
 
 /*
  * Take forks ensures mutually exclusive access to two forks
@@ -25,7 +38,11 @@
 
 void take_forks(unsigned long phil_num)
 {
-    (void) phil_num;
+    P(mutex);
+    state[phil_num] = 1;
+    test_phil(phil_num);
+    V(mutex);
+    P(phils[phil_num]);
 }
 
 
@@ -36,7 +53,11 @@ void take_forks(unsigned long phil_num)
 
 void put_forks(unsigned long phil_num)
 {
-    (void) phil_num;
+    P(mutex);
+    state[phil_num] = 0;
+    test_phil(LEFT);
+    test_phil(RIGHT);
+    V(mutex);
 }
 
 
@@ -47,7 +68,15 @@ void put_forks(unsigned long phil_num)
 
 void create_forks()
 {
-
+    mutex = sem_create("mutex for phil", 1);
+    for(int i = 0; i < NUM_PHILOSOPHERS; i++) {
+        state[i] = 0;
+        phils[i] = sem_create("a phil sem", 1);
+        if(phils[i] == NULL){
+            panic("A fork could not be created");
+        }
+    }
+    
 }
 
 
@@ -58,5 +87,8 @@ void create_forks()
 
 void destroy_forks()
 {
-    
+    sem_destroy(mutex);
+    for(int i = 0; i < NUM_PHILOSOPHERS; i++) {
+        sem_destroy(phils[i]);
+    }
 }

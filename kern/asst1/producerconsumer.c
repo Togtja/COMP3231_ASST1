@@ -14,6 +14,12 @@
 
 data_item_t * item_buffer[BUFFER_SIZE];
 
+int count;
+
+struct cv* full;
+struct cv* empty;
+
+struct lock* prodconLock;
 
 /* consumer_receive() is called by a consumer to request more data. It
    should block on a sync primitive if no data is available in your
@@ -21,22 +27,15 @@ data_item_t * item_buffer[BUFFER_SIZE];
 
 data_item_t * consumer_receive(void)
 {
-        data_item_t * item;
-
-
-        /*****************
-         * Remove everything just below when you start.
-         * The following code is just to trick the compiler to compile
-         * the incomplete initial code 
-         ****************/
-
-        (void) item_buffer; 
-        item = NULL;
-
-        /******************
-         * Remove above here
-         */
-
+        
+        lock_acquire(prodconLock);
+        while(count == 0){
+                cv_wait(empty, prodconLock);
+        }
+        data_item_t * item = item_buffer[count-1];
+        count--;
+        cv_signal(full, prodconLock);
+        lock_release(prodconLock);
         return item;
 }
 
@@ -45,7 +44,15 @@ data_item_t * consumer_receive(void)
 
 void producer_send(data_item_t *item)
 {
-        (void) item; /* Remove this when you add your code */
+        lock_acquire(prodconLock);
+        while(count == BUFFER_SIZE){
+                cv_wait(full, prodconLock);
+        }
+        item_buffer[count] = item;
+        count++;
+        cv_signal(empty,prodconLock);
+        lock_release(prodconLock);
+        
 }
 
 
@@ -56,10 +63,27 @@ void producer_send(data_item_t *item)
 
 void producerconsumer_startup(void)
 {
+        count = 0;
+        full = cv_create("full CV");
+        if(full == NULL){
+                panic("full CV failed to create");
+        }
+        empty = cv_create("empty CV");
+        if(empty == NULL){
+                panic("empty CV failed to create");
+        }
+        prodconLock = lock_create("Prod Con Lock");
+        if(prodconLock == NULL){
+                panic("prodconLock failed to create");
+        }
+
 }
 
 /* Perform any clean-up you need here */
 void producerconsumer_shutdown(void)
 {
+        cv_destroy(full);
+        cv_destroy(empty);
+        lock_destroy(prodconLock);
 }
 
