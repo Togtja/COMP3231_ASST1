@@ -91,7 +91,7 @@ static void ben(void * unusedpointer, unsigned long unusedint)
                    needs to do while holding the locks */
                 holds_locka_and_b();
 
-                lock_release(locka);
+                lock_release(locka); //Just made sure they release it in the same order
                 lock_release(lockb);
         }
 

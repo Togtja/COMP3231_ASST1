@@ -39,8 +39,14 @@ struct semaphore *finished;
  * ADD YOUR OWN VARIABLES HERE AS NEEDED
  * **********************************************************************
  */
-struct semaphore* adderSem;
-struct lock* adderLock;
+/*
+ * I could go with a semaphore here, and as you will see I 
+ *
+ *
+ *
+*/
+//struct semaphore* adderSem;
+struct lock* adderLock; //The lock of the adder's crirical section
 
 
 /*
@@ -79,10 +85,15 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                    of increments */
                 //P(adderSem);
                 lock_acquire(adderLock);
+                //Start of critical section
                 a = counter;
                 if (a < NADDS) {
                         counter = counter + 1;
                         b = counter;
+
+						// While we end the use of global variables here
+						// But since it's not garanteed we will be here due to the if else
+						// we can't release the lock here :(
 
                         /*
                          * count the number of increments we perform  for statistics.
@@ -100,8 +111,10 @@ static void adder(void * unusedpointer, unsigned long addernumber)
                 } else {
                         flag = 0;
                 }
+                //End of critcal section
                 //V(adderSem);
                 lock_release(adderLock);
+                
         }
 
         /* signal the main thread we have finished and then exit */
@@ -145,14 +158,13 @@ int maths (int data1, char **data2)
          * INSERT ANY INITIALISATION CODE YOU REQUIRE HERE
          * ********************************************************************
          */
-        adderSem = sem_create("adder semaphore", 0);
-
-        if(adderSem == NULL){
-                panic("maths: adderSem create failed");
-        }
-
+        //Creat the lock for the adder's critical section
+        //adderSem = sem_create("Adder sem", 1);
+        //if(adderSem == NULL){
+        //      panic("maths: Adder Semephore create failed");
+        //}
         adderLock = lock_create("Adder lock");
-
+        //Make sure we managed to allocate the memmory for it
         if(adderLock == NULL){
                 panic("maths: Adder Lock create failed");
         }
@@ -196,6 +208,7 @@ int maths (int data1, char **data2)
                 kprintf("Adder %d performed %ld increments.\n", index,
                         adder_counters[index]);
         }
+
         kprintf("The adders performed %ld increments overall (expected %d)\n", sum, NADDS);
 
         /*
@@ -203,9 +216,11 @@ int maths (int data1, char **data2)
          * INSERT ANY CLEANUP CODE YOU REQUIRE HERE
          * **********************************************************************
          */
-        sem_destroy(adderSem);
+        // Clean up the lock for the adder
+
         lock_destroy(adderLock);
 
+        //sem_destroy(adderSem);
         /* clean up the semaphore we allocated earlier */
         sem_destroy(finished);
         return 0;

@@ -11,19 +11,38 @@
  * Declare any data structures you might need to synchronise 
  * your forks here.
  */
-#define LEFT (phil_num + NUM_PHILOSOPHERS-1)%NUM_PHILOSOPHERS
-#define RIGHT (phil_num+1)%NUM_PHILOSOPHERS
 
+//I felt an enum would be better than 3 #define for the diffrent states
+enum phil_state {thinking, hungry, eating}; 
+
+//Finds the unsinged long value for the philosopher to the left and right
+//Macros are error-prone because they rely on textual substitution and do not perform type-checking
+static int left(unsigned long i){
+    return (int)(i + NUM_PHILOSOPHERS-1)%NUM_PHILOSOPHERS;
+}
+static int right(unsigned long i){
+    return (int)(i + 1)%NUM_PHILOSOPHERS;
+}
+//
+
+//Mutex for the dining philosophers
 struct semaphore* mutex;
+//A semaphore for all the philosofers
 struct semaphore* phils[NUM_PHILOSOPHERS];
+
+//Keeps track on the diffrent states of the philosophers
 int state[NUM_PHILOSOPHERS];
 
-
+//check if the a said philosopher is hungry and
+// philosophers next to said philosopher is not busy eating
+//If this is true then our said philosopher can start eating
+//Also up the said philospher
 static void test_phil(unsigned long phil_num){
-    if(state[phil_num] == 1
-    && state[LEFT] != 2
-    && state[RIGHT] != 2){
-        state[phil_num] = 2;
+    if(state[phil_num] == hungry
+    && state[left(phil_num)] != eating
+    && state[right(phil_num)] != eating){
+        state[phil_num] = eating;
+        //Up the philosopher semaphore
         V(phils[phil_num]);
     }
 }
@@ -35,13 +54,15 @@ static void test_phil(unsigned long phil_num){
  * The left fork number = phil_num
  * The right fork number = (phil_num + 1) % NUM_PHILOSPHERS
  */
-
 void take_forks(unsigned long phil_num)
 {
+    //Down mutex
     P(mutex);
-    state[phil_num] = 1;
+    state[phil_num] = hungry;
     test_phil(phil_num);
+    //Up mutex
     V(mutex);
+    //Down the philosopher semaphore
     P(phils[phil_num]);
 }
 
@@ -53,10 +74,12 @@ void take_forks(unsigned long phil_num)
 
 void put_forks(unsigned long phil_num)
 {
+    //Down mutex
     P(mutex);
-    state[phil_num] = 0;
-    test_phil(LEFT);
-    test_phil(RIGHT);
+    state[phil_num] = thinking;
+    test_phil(left(phil_num));
+    test_phil(right(phil_num));
+    //Up mutex
     V(mutex);
 }
 
@@ -70,10 +93,10 @@ void create_forks()
 {
     mutex = sem_create("mutex for phil", 1);
     for(int i = 0; i < NUM_PHILOSOPHERS; i++) {
-        state[i] = 0;
-        phils[i] = sem_create("a phil sem", 1);
+        state[i] = thinking;
+        phils[i] = sem_create("a phil nr sem", 1);
         if(phils[i] == NULL){
-            panic("A fork could not be created");
+            panic("fork nr %d could not be created", i);
         }
     }
     
